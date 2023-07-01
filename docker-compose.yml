@@ -1,25 +1,49 @@
 version: "3.7"
 services:
+  # Database
   clickhouse:
-    image: clickhouse/clickhouse-server:23.3.6.7-alpine
+    image: clickhouse/clickhouse-server:23.3.6.7
     container_name: clickhouse
     restart: unless-stopped
     ports:
-      - "127.0.0.1:8123:8123"
+      - "8123:8123"
+      - "9000:9000"
+    networks:
+      - clusterViz-net
     volumes:
       - clickhouse_data:/var/lib/clickhouse/
       - clickhouse_logs:/var/log/clickhouse-server/
-
+      - type: bind
+        source: ./data
+        target: /home/data
+    ulimits:
+      nofile:
+          soft: 262144
+          hard: 262144
+    environment:
+      - CLICKHOUSE_DB=cellsites
+      - CLICKHOUSE_USER=superset
+      - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
+      - CLICKHOUSE_PASSWORD=supersetAdmin
+  # Visualization
   superset:
-    env_file: docker/.env
     image: superset:0.0.0
     container_name: superset
     restart: unless-stopped
     ports:
-      - 8088:8088
-
+      - 8000:8088
+    networks:
+      - clusterViz-net
+    environment:
+      - SQLALCHEMY_DATABASE_URI=clickhousedb://superset:supersetAdmin@clickhouse:8123/cellsites
+# Volumes
 volumes:
   clickhouse_data:
     external: false
   clickhouse_logs:
     external: false
+  data:
+# Networks
+networks:
+  clusterViz-net:
+    driver: bridge
